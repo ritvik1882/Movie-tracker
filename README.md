@@ -7,4 +7,5 @@
 
 
 Install Flask and Sqlite3
+
 Use command 'python app.py' to start server
