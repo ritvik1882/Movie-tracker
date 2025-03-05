@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MovieTracker</title>
+
+    <!-- Resources -->
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAGASURBVFhH7ZZNTsMwEIVTFuxYcgMOwE7qBSp+TsEROAEX4BjAFdhwBE7AMdiw4gIICcGGn4VFKGKGzIQGaZw6ttWWeJKlKvH4zbz4JU4yGcHzvKRpmnue53dN0+yh/Yb+Br/v8P0Z/Rl9p6qqp7Ztj+BrQQsPYVmWZ0h6Cf0RfW4YzuAP0O+rqrrgUDyA+B7kV9B/pEQ7gO8Lz3me7zNcHyA8BuHrlOQfuOYey/9ACFeZxhLneX7AaeMBkRXIvqckUeDaO5YfQFEUxyB6kBJEhTFuWUYHiM5B8CQliArXPrKMDsb+TQoQB8Z4YCkdID7mGP8Cy+gA0T0IPqUEUWGMG5bSAaIzELxLCaLCGOcspQNEFyB4kxJEhWs3WEoHiNYgeJUSxIExfPZZBkj+uyUzxj3L6IDp3AHJm5QkCox1y/I6QPQIkk8pyX/gmleWjwcI30H2PiWaBa55Y9l4APkGpG9Tsv/AtW4sm0xA7rDdbveYZacgXEJ/jvYS7TV8bqHfwmcD7WaSJL+6qNXA9j3d7QAAAABJRU5ErkJggg==">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+    <!-- styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="static/styles.css">
+</head>
+<body class="min-h-screen">
+    <nav class="custom-nav p-4">
+        <div class="container mx-auto flex items-center justify-between">
+            <h1 class="text-2xl font-bold text-white">MovieTracker</h1>
+            <div class="relative">
+                <input type="text" id="searchInput" placeholder="Search movies..." 
+                       class="custom-input bg-gray-800 text-white px-4 py-2 rounded-lg w-64 focus:outline-none">
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex space-x-4 mb-8">
+            <button id="popularTab" class="tab-button px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors active">
+                Popular
+            </button>
+            <button id="watchlistTab" class="tab-button px-4 py-2 rounded-lg bg-gray-700 text-white font-medium hover:bg-gray-600 transition-colors">
+                Watchlist
+            </button>
+            <button id="watchedTab" class="tab-button px-4 py-2 rounded-lg bg-gray-700 text-white font-medium hover:bg-gray-600 transition-colors">
+                Watched
+            </button>
+        </div>
+
+        <div id="movieGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <!-- Movies -->
+        </div>
+    </div>
+
+    <!-- Movie Details Modal -->
+    <div id="movieModal" class="custom-modal fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center">
+        <div class="custom-modal-content bg-gray-900 rounded-lg max-w-2xl w-full mx-4 overflow-hidden">
+            <div id="movieDetails" class="p-6">
+                <!-- Movie details -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TMDB_API_KEY = '10b3deea9520e5bfdcea80a123e8046f';
+        const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p/w500';
+        let currentTab = 'popular';
+        let watchlistIds = new Set();
+        let watchedIds = new Set();
+
+        // Fetch watchlist and watched movies on load
+        async function initializeLists() {
+            const watchlistResponse = await fetch('/api/watchlist');
+            const watchedResponse = await fetch('/api/watched');
+            const watchlist = await watchlistResponse.json();
+            const watched = await watchedResponse.json();
+            watchlistIds = new Set(watchlist);
+            watchedIds = new Set(watched);
+        }
+
+        async function fetchMovies(endpoint) {
+            const response = await fetch(`https://api.themoviedb.org/3/${endpoint}?api_key=${TMDB_API_KEY}`);
+            const data = await response.json();
+            return data.results;
+        }
+
+        async function searchMovies(query) {
+            const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            return data.results;
+        }
+
+        function createMovieCard(movie) {
+            const isInWatchlist = watchlistIds.has(movie.id);
+            const isWatched = watchedIds.has(movie.id);
+            
+            return `
+                <div class="movie-card bg-gray-800 rounded-lg overflow-hidden shadow-lg">
+                    <img src="${TMDB_IMG_BASE}${movie.poster_path}" alt="${movie.title}" 
+                         class="w-full h-72 object-cover cursor-pointer"
+                         onclick="showMovieDetails(${movie.id})">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold mb-2">${movie.title}</h3>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-400">${movie.release_date?.split('-')[0] || 'N/A'}</span>
+                            <div class="space-x-2">
+                                ${!isWatched ? `
+                                    <button onclick="toggleWatchlist(${movie.id})" 
+                                            class="text-sm px-3 py-1 rounded ${isInWatchlist ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-600 hover:bg-gray-700'}">
+                                        <i class="fas ${isInWatchlist ? 'fa-bookmark' : 'fa-bookmark-o'}"></i>
+                                    </button>
+                                ` : ''}
+                                <button onclick="toggleWatched(${movie.id})" 
+                                        class="text-sm px-3 py-1 rounded ${isWatched ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-600 hover:bg-gray-700'}">
+                                    <i class="fas ${isWatched ? 'fa-check' : 'fa-eye'}"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function showMovieDetails(movieId) {
+            // Fetch movie details first
+            const [movieResponse, videosResponse] = await Promise.all([
+                fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${TMDB_API_KEY}`),
+                fetch(`https://api.themoviedb.org/3/movie/${movieId}/videos?api_key=${TMDB_API_KEY}`)
+            ]);
+            const movie = await movieResponse.json();
+            const videos = await videosResponse.json();
+            const trailer = videos.results.find(video => video.type === 'Trailer' && video.site === 'YouTube');
+            
+            // Show and animate modal
+            const modal = document.getElementById('movieModal');
+            const details = document.getElementById('movieDetails');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                modal.classList.add('active');
+            }, 10);
+            
+            details.innerHTML = `
+                <div class="flex flex-col md:flex-row gap-6">
+                    <img src="${TMDB_IMG_BASE}${movie.poster_path}" alt="${movie.title}" 
+                         class="w-full md:w-64 rounded-lg">
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start">
+                            <h2 class="text-2xl font-bold mb-4">${movie.title}</h2>
+                            <button onclick="closeModal()" class="text-gray-400 hover:text-white">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <p class="text-gray-400 mb-4">${movie.release_date} • ${movie.runtime} min</p>
+                        <p class="text-sm mb-4">${movie.overview}</p>
+                        <div class="space-y-4">
+                            <div class="flex gap-4">
+                                <div class="flex items-center">
+                                    <i class="fas fa-star text-yellow-500 mr-2"></i>
+                                    <span>${movie.vote_average.toFixed(1)}/10</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <i class="fas fa-users text-blue-500 mr-2"></i>
+                                    <span>${movie.vote_count} votes</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <a href="https://www.imdb.com/title/${movie.imdb_id}" target="_blank" 
+                                   class="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+                                    <i class="fab fa-imdb mr-2"></i>
+                                    IMDB
+                                </a>
+                                <a href="https://www.themoviedb.org/movie/${movie.id}" target="_blank"
+                                   class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-film mr-2"></i>
+                                    TMDB
+                                </a>
+                                ${trailer ? `
+                                    <a href="https://www.youtube.com/watch?v=${trailer.key}" target="_blank"
+                                       class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                                        <i class="fab fa-youtube mr-2"></i>
+                                        Trailer
+                                    </a>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('movieModal');
+            modal.classList.remove('active');
+            
+            // Wait for animation to complete before hiding
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+
+        async function toggleWatchlist(movieId) {
+            if (watchlistIds.has(movieId)) {
+                await fetch(`/api/watchlist?movie_id=${movieId}`, { method: 'DELETE' });
+                watchlistIds.delete(movieId);
+            } else {
+                await fetch('/api/watchlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ movie_id: movieId })
+                });
+                watchlistIds.add(movieId);
+            }
+            updateMovieGrid();
+        }
+
+        async function toggleWatched(movieId) {
+            if (watchedIds.has(movieId)) {
+                await fetch(`/api/watched?movie_id=${movieId}`, { method: 'DELETE' });
+                watchedIds.delete(movieId);
+            } else {
+                await fetch('/api/watched', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ movie_id: movieId })
+                });
+                watchedIds.add(movieId);
+                watchlistIds.delete(movieId);
+            }
+            updateMovieGrid();
+        }
+
+        async function updateMovieGrid() {
+            const grid = document.getElementById('movieGrid');
+            let movies = [];
+
+            if (currentTab === 'popular') {
+                movies = await fetchMovies('movie/popular');
+                grid.innerHTML = movies.map(movie => createMovieCard(movie)).join('');
+            } else if (currentTab === 'watchlist') {
+                const watchlistMovies = [];
+                for (const id of watchlistIds) {
+                    const response = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_API_KEY}`);
+                    const movie = await response.json();
+                    watchlistMovies.push(movie);
+                }
+                movies = watchlistMovies;
+                if (movies.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state col-span-full flex flex-col items-center justify-center py-12 text-gray-400">
+                            <i class="fas fa-film text-4xl mb-4"></i>
+                            <p class="text-xl mb-4">Your watchlist is empty</p>
+                            <button onclick="switchToPopular()" 
+                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Discover Movies
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    grid.innerHTML = movies.map(movie => createMovieCard(movie)).join('');
+                }
+            } else if (currentTab === 'watched') {
+                const watchedMovies = [];
+                for (const id of watchedIds) {
+                    const response = await fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${TMDB_API_KEY}`);
+                    const movie = await response.json();
+                    watchedMovies.push(movie);
+                }
+                movies = watchedMovies;
+                if (movies.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state col-span-full flex flex-col items-center justify-center py-12 text-gray-400">
+                            <i class="fas fa-check-circle text-4xl mb-4"></i>
+                            <p class="text-xl mb-4">You haven't watched any movies yet</p>
+                            <button onclick="switchToPopular()" 
+                                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Discover Movies
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    grid.innerHTML = movies.map(movie => createMovieCard(movie)).join('');
+                }
+            }
+        }
+
+        // Event Listeners
+        function switchToPopular() {
+            currentTab = 'popular';
+            updateMovieGrid();
+            updateTabStyles();
+        }
+
+        function updateTabStyles() {
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'active');
+                btn.classList.add('bg-gray-700', 'hover:bg-gray-600');
+            });
+            const activeTab = document.getElementById(currentTab + 'Tab');
+            activeTab.classList.remove('bg-gray-700', 'hover:bg-gray-600');
+            activeTab.classList.add('bg-blue-600', 'hover:bg-blue-700', 'active');
+        }
+
+        document.getElementById('popularTab').addEventListener('click', () => {
+            switchToPopular();
+        });
+
+        document.getElementById('watchlistTab').addEventListener('click', () => {
+            currentTab = 'watchlist';
+            updateMovieGrid();
+            updateTabStyles();
+        });
+
+        document.getElementById('watchedTab').addEventListener('click', () => {
+            currentTab = 'watched';
+            updateMovieGrid();
+            updateTabStyles();
+        });
+
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                const query = e.target.value.trim();
+                if (query) {
+                    const movies = await searchMovies(query);
+                    document.getElementById('movieGrid').innerHTML = 
+                        movies.map(movie => createMovieCard(movie)).join('');
+                } else {
+                    updateMovieGrid();
+                }
+            }, 300);
+        });
+
+        // Initialize
+        initializeLists().then(() => {
+            updateMovieGrid();
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('movieModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('movieModal')) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

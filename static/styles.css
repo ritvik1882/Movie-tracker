@@ -1,0 +1,134 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0a0a0a;
+    color: #fff;
+}
+
+/* Navigation */
+.custom-nav {
+    background: linear-gradient(to bottom, #1a1a1a, #0a0a0a);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+/* Search Input Styling */
+.custom-input {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.custom-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Movie card animations and effects */
+.movie-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    background: linear-gradient(to bottom, #1f2937, #111827);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.movie-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+}
+
+.movie-card img {
+    transition: opacity 0.3s ease;
+}
+
+.movie-card img:hover {
+    opacity: 0.9;
+}
+
+/* Movie buttons styling */
+.movie-card button {
+    transition: all 0.2s ease;
+}
+
+.movie-card button:hover {
+    transform: scale(1.1);
+}
+
+/* Custom Modal Styling */
+.custom-modal {
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(8px);
+}
+
+.custom-modal-content {
+    transform: scale(0.95);
+    opacity: 0;
+    transition: all 0.3s ease;
+}
+
+.custom-modal.active .custom-modal-content {
+    transform: scale(1);
+    opacity: 1;
+}
+
+/* Tab buttons styling */
+.tab-button {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.tab-button::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: #3b82f6;
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.tab-button:hover::after {
+    width: 100%;
+}
+
+.tab-button.active::after {
+    width: 100%;
+}
+
+.empty-state {
+    transition: all 0.3s ease;
+}
+
+.empty-state:hover {
+    transform: translateY(-2px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .movie-card {
+        margin: 0 auto;
+        max-width: 320px;
+    }
+    
+    .custom-input {
+        width: 100%;
+        max-width: 280px;
+    }
+}
+
+/* Loading state for images */
+.movie-card.loading {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
